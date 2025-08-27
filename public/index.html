@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keycloak LDAP Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+            padding: 25px;
+            border: 1px solid #e1e5e9;
+            border-radius: 10px;
+            background: #f8f9fa;
+        }
+
+        .section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .result pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .error {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .success {
+            border-left-color: #28a745;
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border: 1px solid #e1e5e9;
+        }
+
+        .card h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-weight: 600;
+        }
+
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 Keycloak User Management Demo</h1>
+            <p>连接Keycloak管理用户信息的演示应用</p>
+        </div>
+
+        <div class="content">
+            <!-- 连接状态 -->
+            <div class="section">
+                <h2>📡 连接状态</h2>
+                <div class="grid">
+                    <div class="card">
+                        <h3>Keycloak 连接</h3>
+                        <div id="keycloakStatus" class="status disconnected">未连接</div>
+                        <button class="btn" onclick="testConnection()">测试连接</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 用户认证 -->
+            <div class="section">
+                <h2>🔑 用户认证</h2>
+                <div class="form-group">
+                    <label for="username">用户名:</label>
+                    <input type="text" id="username" placeholder="输入用户名">
+                </div>
+                <div class="form-group">
+                    <label for="password">密码:</label>
+                    <input type="password" id="password" placeholder="输入密码">
+                </div>
+                <button class="btn btn-success" onclick="login()">登录</button>
+                <button class="btn btn-danger" onclick="logout()">登出</button>
+                <div id="authResult" class="result" style="display: none;"></div>
+            </div>
+
+            <!-- 用户管理 -->
+            <div class="section">
+                <h2>👥 用户管理</h2>
+                <button class="btn" onclick="getAllUsers()">获取所有用户</button>
+                <button class="btn" onclick="getUserGroups()">获取用户组</button>
+                <button class="btn" onclick="getUserRoles()">获取用户角色</button>
+                
+                <div class="form-group" style="margin-top: 20px;">
+                    <label for="searchTerm">搜索用户:</label>
+                    <input type="text" id="searchTerm" placeholder="输入搜索关键词">
+                    <button class="btn" onclick="searchUsers()">搜索</button>
+                </div>
+                
+                <div class="form-group">
+                    <label for="userId">用户ID (用于获取组和角色):</label>
+                    <input type="text" id="userId" placeholder="输入用户ID">
+                </div>
+                
+                <div id="userResult" class="result" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentToken = null;
+
+        // 显示结果
+        function showResult(elementId, data, isError = false) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = `result ${isError ? 'error' : 'success'}`;
+            element.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+        }
+
+        // 隐藏结果
+        function hideResult(elementId) {
+            document.getElementById(elementId).style.display = 'none';
+        }
+
+        // 显示加载状态
+        function showLoading(elementId) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = 'result';
+            element.innerHTML = '<div class="loading">加载中...</div>';
+        }
+
+        // 测试连接
+        async function testConnection() {
+            showLoading('keycloakStatus');
+            try {
+                const response = await fetch('/');
+                const data = await response.json();
+                document.getElementById('keycloakStatus').className = 'status connected';
+                document.getElementById('keycloakStatus').textContent = '已连接';
+                showResult('keycloakStatus', data);
+            } catch (error) {
+                document.getElementById('keycloakStatus').className = 'status disconnected';
+                document.getElementById('keycloakStatus').textContent = '连接失败';
+                showResult('keycloakStatus', { error: error.message }, true);
+            }
+        }
+
+
+
+        // 用户登录
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                alert('请输入用户名和密码');
+                return;
+            }
+
+            showLoading('authResult');
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentToken = data.access_token;
+                    showResult('authResult', data);
+                } else {
+                    showResult('authResult', data, true);
+                }
+            } catch (error) {
+                showResult('authResult', { error: error.message }, true);
+            }
+        }
+
+        // 用户登出
+        async function logout() {
+            if (!currentToken) {
+                alert('请先登录');
+                return;
+            }
+
+            showLoading('authResult');
+            try {
+                const response = await fetch('/api/auth/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ refreshToken: currentToken })
+                });
+                
+                const data = await response.json();
+                currentToken = null;
+                showResult('authResult', data);
+            } catch (error) {
+                showResult('authResult', { error: error.message }, true);
+            }
+        }
+
+        // 获取所有用户
+        async function getAllUsers() {
+            showLoading('userResult');
+            try {
+                const response = await fetch('/api/users');
+                const data = await response.json();
+                showResult('userResult', data);
+            } catch (error) {
+                showResult('userResult', { error: error.message }, true);
+            }
+        }
+
+        // 获取用户组
+        async function getUserGroups() {
+            const userId = document.getElementById('userId').value;
+            
+            if (!userId) {
+                alert('请输入用户ID');
+                return;
+            }
+
+            showLoading('userResult');
+            try {
+                const response = await fetch(`/api/users/${userId}/groups`);
+                const data = await response.json();
+                showResult('userResult', data);
+            } catch (error) {
+                showResult('userResult', { error: error.message }, true);
+            }
+        }
+
+        // 获取用户角色
+        async function getUserRoles() {
+            const userId = document.getElementById('userId').value;
+            
+            if (!userId) {
+                alert('请输入用户ID');
+                return;
+            }
+
+            showLoading('userResult');
+            try {
+                const response = await fetch(`/api/users/${userId}/roles`);
+                const data = await response.json();
+                showResult('userResult', data);
+            } catch (error) {
+                showResult('userResult', { error: error.message }, true);
+            }
+        }
+
+        // 搜索用户
+        async function searchUsers() {
+            const searchTerm = document.getElementById('searchTerm').value;
+            
+            if (!searchTerm) {
+                alert('请输入搜索关键词');
+                return;
+            }
+
+            showLoading('userResult');
+            try {
+                const response = await fetch(`/api/users/search?q=${encodeURIComponent(searchTerm)}`);
+                const data = await response.json();
+                showResult('userResult', data);
+            } catch (error) {
+                showResult('userResult', { error: error.message }, true);
+            }
+        }
+
+
+
+        // 页面加载时测试连接
+        window.onload = function() {
+            testConnection();
+        };
+    </script>
+</body>
+</html>
