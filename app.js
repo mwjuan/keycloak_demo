@@ -6,6 +6,8 @@ const path = require('path');
 require('dotenv').config();
 
 const keycloakService = require('./services/keycloakService');
+const axios = require('axios');
+const qs = require('qs');
 
 const app = new Koa();
 const router = new Router();
@@ -43,10 +45,49 @@ router.get('/', async (ctx) => {
   };
 });
 
+router.get('/api/auth/callback', async (ctx) => {
+  try {
+    const { state, code } = ctx.request.query;
+
+    console.log(code)
+    return;
+    let data = qs.stringify({
+      'grant_type': 'client_credentials',
+      'code': code,
+      'client_id': 'test',
+      // 'redirect_uri': 'http://localhost:5173/api/auth/info',
+      'client_secret': '7KrXGE6lYXSJPWCn6KPjczcMwkBvBIue'
+    });
+
+    let config = {
+      method: 'post',
+      url: 'http://localhost:8080/realms/master/protocol/openid-connect/token',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      data
+    };
+
+    let result = await axios.request(config)
+    let access_token = result.data.access_token;
+    // console.log(result.data)
+    let userResult = await axios.get('http://localhost:8080/realms/master/protocol/openid-connect/userinfo', {
+      headers: {
+        Authorization: `Bearer ${access_token}`
+      }
+    })
+    console.log(userResult)
+    ctx.body = 'ok'
+  } catch (error) {
+    console.log(error)
+    ctx.status = 400;
+  }
+});
+
 // 认证相关路由
 router.post('/api/auth/login', async (ctx) => {
   const { username, password } = ctx.request.body;
-  
+
   if (!username || !password) {
     ctx.status = 400;
     ctx.body = { error: '用户名和密码不能为空' };
@@ -64,7 +105,7 @@ router.post('/api/auth/login', async (ctx) => {
 
 router.post('/api/auth/logout', async (ctx) => {
   const { refreshToken } = ctx.request.body;
-  
+
   try {
     const result = await keycloakService.logout(refreshToken);
     ctx.body = result;
@@ -87,7 +128,7 @@ router.get('/api/users', async (ctx) => {
 
 router.get('/api/users/:id', async (ctx) => {
   const { id } = ctx.params;
-  
+
   try {
     const user = await keycloakService.getUserById(id);
     ctx.body = user;
@@ -99,7 +140,7 @@ router.get('/api/users/:id', async (ctx) => {
 
 router.get('/api/users/search', async (ctx) => {
   const { q } = ctx.query;
-  
+
   if (!q) {
     ctx.status = 400;
     ctx.body = { error: '搜索关键词不能为空' };
@@ -117,7 +158,7 @@ router.get('/api/users/search', async (ctx) => {
 
 router.get('/api/users/:id/groups', async (ctx) => {
   const { id } = ctx.params;
-  
+
   try {
     const groups = await keycloakService.getUserGroups(id);
     ctx.body = groups;
@@ -129,7 +170,7 @@ router.get('/api/users/:id/groups', async (ctx) => {
 
 router.get('/api/users/:id/roles', async (ctx) => {
   const { id } = ctx.params;
-  
+
   try {
     const roles = await keycloakService.getUserRoles(id);
     ctx.body = roles;

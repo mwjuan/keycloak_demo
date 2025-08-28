@@ -106,7 +106,7 @@ class KeycloakService {
     try {
       const token = await this.getAdminToken();
       const response = await axios.get(
-        `${this.baseUrl}/admin/realms/${this.realm}/users?email=@shgbit.com`,
+        `${this.baseUrl}/admin/realms/${this.realm}/users?email=@test.com`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
