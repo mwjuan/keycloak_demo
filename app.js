@@ -82,10 +82,8 @@ router.get('/api/auth/callback', async (ctx) => {
         Authorization: `Bearer ${tokenData.access_token}`
       }
     })
-    ctx.cookies.set('email', userResult.data.email, { httpOnly: false, expires: moment().add(1, 'day').toDate() });;
-    ctx.cookies.set('name', userResult.data.preferred_username, { httpOnly: false, expires: moment().add(1, 'day').toDate() });
     ctx.cookies.set('id_token', tokenData.id_token, { httpOnly: false, expires: moment().add(1, 'day').toDate() });
-    ctx.redirect('http://localhost:5173/#/home');
+    ctx.redirect(`http://localhost:5173/#/home?name=${userResult.data.preferred_username}&email=${userResult.data.email}`);
   } catch (error) {
     console.log(error)
     ctx.status = 400;
