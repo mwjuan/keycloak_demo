@@ -4,13 +4,21 @@ const bodyParser = require('koa-bodyparser');
 const serve = require('koa-static');
 const path = require('path');
 require('dotenv').config();
+const moment = require('moment');
 
 const keycloakService = require('./services/keycloakService');
 const axios = require('axios');
 const qs = require('qs');
+const crypto = require('crypto');
 
 const app = new Koa();
 const router = new Router();
+
+const redirectUri = `http://localhost:5173/api/auth/callback`
+const baseUrl = process.env.KEYCLOAK_BASE_URL;
+const realm = process.env.KEYCLOAK_REALM;
+const clientId = process.env.KEYCLOAK_CLIENT_ID;
+const clientSecret = process.env.KEYCLOAK_CLIENT_SECRET;
 
 // 中间件
 app.use(bodyParser());
@@ -48,20 +56,19 @@ router.get('/', async (ctx) => {
 router.get('/api/auth/callback', async (ctx) => {
   try {
     const { state, code } = ctx.request.query;
-
-    console.log(code)
-    return;
+    let codeVerifier = ctx.cookies.get('codeVerifier')
     let data = qs.stringify({
-      'grant_type': 'client_credentials',
+      'grant_type': 'authorization_code',
       'code': code,
-      'client_id': 'test',
-      // 'redirect_uri': 'http://localhost:5173/api/auth/info',
-      'client_secret': '7KrXGE6lYXSJPWCn6KPjczcMwkBvBIue'
+      'client_id': clientId,
+      'redirect_uri': redirectUri,
+      'client_secret': clientSecret,
+      'code_verifier': codeVerifier
     });
 
     let config = {
       method: 'post',
-      url: 'http://localhost:8080/realms/master/protocol/openid-connect/token',
+      url: `${baseUrl}/realms/${realm}/protocol/openid-connect/token`,
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded'
       },
@@ -69,49 +76,19 @@ router.get('/api/auth/callback', async (ctx) => {
     };
 
     let result = await axios.request(config)
-    let access_token = result.data.access_token;
-    // console.log(result.data)
-    let userResult = await axios.get('http://localhost:8080/realms/master/protocol/openid-connect/userinfo', {
+    let tokenData = result.data;
+    let userResult = await axios.get(`${baseUrl}/realms/${realm}/protocol/openid-connect/userinfo`, {
       headers: {
-        Authorization: `Bearer ${access_token}`
+        Authorization: `Bearer ${tokenData.access_token}`
       }
     })
-    console.log(userResult)
-    ctx.body = 'ok'
+    ctx.cookies.set('email', userResult.data.email, { httpOnly: false, expires: moment().add(1, 'day').toDate() });;
+    ctx.cookies.set('name', userResult.data.preferred_username, { httpOnly: false, expires: moment().add(1, 'day').toDate() });
+    ctx.cookies.set('id_token', tokenData.id_token, { httpOnly: false, expires: moment().add(1, 'day').toDate() });
+    ctx.redirect('http://localhost:5173/#/home');
   } catch (error) {
     console.log(error)
     ctx.status = 400;
-  }
-});
-
-// 认证相关路由
-router.post('/api/auth/login', async (ctx) => {
-  const { username, password } = ctx.request.body;
-
-  if (!username || !password) {
-    ctx.status = 400;
-    ctx.body = { error: '用户名和密码不能为空' };
-    return;
-  }
-
-  try {
-    const result = await keycloakService.login(username, password);
-    ctx.body = result;
-  } catch (error) {
-    ctx.status = 401;
-    ctx.body = { error: '登录失败', details: error.message };
-  }
-});
-
-router.post('/api/auth/logout', async (ctx) => {
-  const { refreshToken } = ctx.request.body;
-
-  try {
-    const result = await keycloakService.logout(refreshToken);
-    ctx.body = result;
-  } catch (error) {
-    ctx.status = 400;
-    ctx.body = { error: '登出失败', details: error.message };
   }
 });
 
@@ -179,8 +156,6 @@ router.get('/api/users/:id/roles', async (ctx) => {
     ctx.body = { error: '获取用户角色失败', details: error.message };
   }
 });
-
-
 
 // 使用路由
 app.use(router.routes());
