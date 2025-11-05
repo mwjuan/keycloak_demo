@@ -43,15 +43,15 @@ export default function LoginPage() {
         const state = generateState();
 
         // 本地测试
-        // const authorizeBase = "http://localhost:8080/realms/test/protocol/openid-connect/auth" 
+        const authorizeBase = "http://localhost:8080/realms/master/protocol/openid-connect/auth" 
         // 公司测试
-        const authorizeBase = "http://172.16.30.63:8080/realms/master/protocol/openid-connect/auth" 
+        // const authorizeBase = "rhttp://172.16.30.63:8080/realms/master/protocol/openid-connect/auth" 
         const redirectUri = `http://localhost:5173/api/auth/callback`
 
 
         const params = new URLSearchParams({
             response_type: "code",
-            client_id: "test_realm_client",
+            client_id: "test",
             redirect_uri: redirectUri,
             scope: 'openid profile email phone address',
             nonce: 'bc4ef110-f076-485a-b492-63f5d1586fef',

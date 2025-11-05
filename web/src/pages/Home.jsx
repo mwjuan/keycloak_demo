@@ -22,9 +22,9 @@ export default function Home() {
 		Cookies.remove('id_token')
 
 		// 本地测试
-		// const logoutUrl = new URL('http://localhost:8080/realms/test/protocol/openid-connect/logout'); 
+		const logoutUrl = new URL('http://localhost:8080/realms/master/protocol/openid-connect/logout'); 
 		// 公司测试
-		const logoutUrl = new URL('http://172.16.30.63:8080/realms/master/protocol/openid-connect/logout');
+		// const logoutUrl = new URL('http://172.16.30.63:8080/realms/master/protocol/openid-connect/logout');
 		if (token) {
 			logoutUrl.searchParams.set('id_token_hint', token);
 		}
